@@ -25,4 +25,10 @@ class UserRepository(private val userDao: UserDao) {
     }
 
     suspend fun currentUser(): UserEntity? = userDao.getLoggedIn()
+
+    suspend fun updateProfile(userId: Long, newUsername: String, newPassword: String?): Result<Unit> {
+        if (newUsername.isNotBlank()) userDao.updateUsername(userId, newUsername)
+        newPassword?.let { userDao.updatePassword(userId, it) }
+        return Result.success(Unit)
+    }
 }

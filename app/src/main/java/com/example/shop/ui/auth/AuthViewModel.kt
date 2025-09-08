@@ -8,14 +8,23 @@ import androidx.lifecycle.viewModelScope
 import com.example.shop.data.ShopDatabase
 import com.example.shop.data.UserEntity
 import com.example.shop.data.UserRepository
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class AuthViewModel(private val repo: UserRepository) : ViewModel() {
 
     private val _currentUser = MutableStateFlow<UserEntity?>(null)
     val currentUser: StateFlow<UserEntity?> = _currentUser
+
+    val isLoggedIn: StateFlow<Boolean> =
+        _currentUser
+            .map { it != null }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -46,6 +55,16 @@ class AuthViewModel(private val repo: UserRepository) : ViewModel() {
         _currentUser.value = null
         _message.value = "로그아웃 완료"
     }
+
+    fun updateProfile(newUsername: String, newPassword: String?) = viewModelScope.launch {
+    val user = currentUser.value ?: run { _message.value = "로그인이 필요합니다"; return@launch }
+    repo.updateProfile(user.id, newUsername, newPassword)
+        .onSuccess {
+            _currentUser.value = user.copy(username = newUsername)
+            _message.value = "저장되었습니다"
+        }
+        .onFailure { _message.value = it.message }
+}
 
     companion object {
         fun factory(app: Application): ViewModelProvider.Factory =

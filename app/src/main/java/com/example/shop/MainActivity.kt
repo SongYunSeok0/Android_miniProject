@@ -22,81 +22,117 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.setContent
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import com.example.shop.ui.auth.AuthViewModel
+import com.example.shop.ui.auth.LoginScreen
+import com.example.shop.ui.auth.SignUpScreen
+import com.example.shop.ui.web.WebViewScreen
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavController
+
+import android.app.Application
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 
 import com.example.shop.ui.NaverShopItem
 import com.example.shop.ui.ShopViewModel
+import com.example.shop.ui.theme.viewmodelTheme
+import com.example.shop.ui.auth.LoginScreen
+import com.example.shop.ui.auth.AccountScreen
+import com.example.shop.ui.auth.SignUpScreen
+import com.example.shop.ui.auth.MyPageScreen
+import com.example.shop.ui.components.ShopRow
+import com.example.shop.ui.components.toUi
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { SearchScreen() }
+        setContent { 
+            viewmodelTheme{
+                AppNav()
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(viewModel: ShopViewModel = viewModel()) {
-    Scaffold(topBar = { TopAppBar(title = { Text("네이버 쇼핑 검색") }) }) { pad ->
+fun SearchScreen(
+    nav: NavController,
+    vm: ShopViewModel = viewModel()
+) {
+    val itemsUi = vm.items.map { it.toUi() }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("네이버 쇼핑 검색") },
+                actions = {
+                    IconButton(onClick = { nav.navigate("mypage") }) {
+                        Icon(Icons.Filled.AccountCircle, contentDescription = "마이페이지")
+                    }
+                }
+            )
+        }
+    ) { pad ->
         Column(Modifier.padding(pad).padding(12.dp)) {
             Row {
                 OutlinedTextField(
-                    value = viewModel.query,
-                    onValueChange = { viewModel.updateQuery(it) },
+                    value = vm.query,
+                    onValueChange = { vm.updateQuery(it) },
                     modifier = Modifier.weight(1f),
                     singleLine = true,
                     label = { Text("검색어") }
                 )
                 Spacer(Modifier.width(8.dp))
-                Button(onClick = { viewModel.search() }) { Text("검색") }
+                Button(onClick = { vm.search() }) { Text("검색") }
             }
 
             Spacer(Modifier.height(12.dp))
 
             when {
-                viewModel.loading -> {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                }
-                viewModel.error != null -> {
-                    Text("에러: ${viewModel.error}", color = MaterialTheme.colorScheme.error)
-                }
+                vm.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                vm.error != null -> Text("에러: ${vm.error}", color = MaterialTheme.colorScheme.error)
             }
 
             Spacer(Modifier.height(8.dp))
 
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(viewModel.items) { item -> ShopRow(item) }
+                items(itemsUi) { uiItem ->
+                    ShopRow(uiItem)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun ShopRow(item: NaverShopItem) {
-    val ctx = LocalContext.current
-    val title = remember(item.title) { item.title.replace("<b>", "").replace("</b>", "") }
+fun ShopWebView() {
 
-    Card(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(12.dp)) {
-            AsyncImage(
-                model = ImageRequest.Builder(ctx)
-                    .data(item.image)
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(72.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+}
 
-            Spacer(Modifier.width(12.dp))
+@Composable
+fun AppNav() {
+    val nav = rememberNavController()
+    val app = LocalContext.current.applicationContext as Application
+    val vm: AuthViewModel = viewModel(factory = AuthViewModel.factory(app))
 
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 2)
-                Spacer(Modifier.height(4.dp))
-                Text("${item.mallName} • 최저가 ${item.lprice}원",
-                    style = MaterialTheme.typography.bodyMedium)
-            }
-        }
+    NavHost(navController = nav, startDestination = "login") {
+        composable("login") { LoginScreen(nav = nav, vm = vm) }
+        composable("signup") { SignUpScreen(nav = nav, vm = vm) }
+        composable("search") { SearchScreen(nav=nav) }
+        composable("mypage")  { MyPageScreen(nav = nav, vm = vm) }
+        composable("account") { AccountScreen(nav = nav, vm = vm) }
     }
 }
