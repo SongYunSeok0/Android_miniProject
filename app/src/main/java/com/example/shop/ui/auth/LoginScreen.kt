@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/shop/ui/auth/LoginScreen.kt
 package com.example.shop.ui.auth
 
 import androidx.compose.foundation.layout.*
@@ -14,6 +15,10 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import com.example.shop.R
 
 @Composable
 fun LoginScreen(nav: NavController, vm: AuthViewModel) {
@@ -21,75 +26,90 @@ fun LoginScreen(nav: NavController, vm: AuthViewModel) {
     var password by rememberSaveable { mutableStateOf("") }
 
     val message by vm.message.collectAsState(initial = null)
-    val isLoggedIn by vm.isLoggedIn.collectAsState(initial = false)
 
     LaunchedEffect(Unit) { vm.bootstrap() }
-
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
-            nav.navigate("search") {
-                popUpTo("login") { inclusive = true }
-                launchSingleTop = true
-            }
-        }
-    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = Color.White
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier.fillMaxSize()
         ) {
-            Text("로그인", style = MaterialTheme.typography.headlineSmall)
-            Spacer(Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("아이디") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+            Image(
+                painter = painterResource(id = R.drawable.naver),
+                contentDescription = "Naver Logo",
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 80.dp)
+                    .size(160.dp),
+                contentScale = ContentScale.Fit
             )
 
-            Spacer(Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("로그인", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("비밀번호") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = { vm.login(username.trim(), password) }
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("아이디") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                 )
-            )
 
-            Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(8.dp))
 
-            Button(
-                onClick = { vm.login(username.trim(), password) },
-                enabled = username.isNotBlank() && password.isNotBlank(),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("로그인") }
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("비밀번호") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = { vm.login(username.trim(), password) }
+                    )
+                )
 
-            Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(16.dp))
 
-            OutlinedButton(
-                onClick = { nav.navigate("signup") },
-                modifier = Modifier.fillMaxWidth()
-            ) { Text("회원가입") }
+                Button(
+                    onClick = { vm.login(username.trim(), password) },
+                    enabled = username.isNotBlank() && password.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF03C75A),
+                        contentColor = Color.White
+                    )
+                ) { Text("로그인") }
 
-            message?.let {
-                Spacer(Modifier.height(12.dp))
-                Text(it, color = MaterialTheme.colorScheme.error)
+                Spacer(Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = { nav.navigate("signup") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFF03C75A)
+                    )
+                ) { Text("회원가입") }
+
+                message?.let {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        it,
+                        color = if (it.contains("성공")) Color(0xFF03C75A)
+                                else MaterialTheme.colorScheme.error
+                    )
+                }
             }
         }
     }

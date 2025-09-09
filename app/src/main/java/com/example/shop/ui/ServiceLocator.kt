@@ -30,13 +30,14 @@ object ServiceLocator {
             CoroutineScope(Dispatchers.IO).launch {
             val dao = db.userDao()
             if (dao.countAdmins() == 0) {
-                // 이미 'admin'이 있으면 그 계정을 승격, 없으면 새로 생성
                 val existing = dao.findByUsername("admin")
                 if (existing == null) {
                     dao.insert(
                         UserEntity(
                             username = "admin",
-                            password = "admin123",  // 데모용. 실제론 해시 권장
+                            password = "admin123",
+                            nickname = "관리자",
+                            email = "admin@sesac.com",
                             status = "ACTIVE",
                             isAdmin = true
                         )

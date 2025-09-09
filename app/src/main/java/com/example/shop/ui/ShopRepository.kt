@@ -1,36 +1,40 @@
 package com.example.shop.ui
 
+import androidx.paging.*
 import androidx.room.withTransaction
 import com.example.shop.data.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
+@OptIn(ExperimentalPagingApi::class)
 class ShopRepository(
     private val api: NaverShopApi = ShopRetrofit.api,
-    private val db: ShopDatabase, 
+    private val db: ShopDatabase,
     private val productDao: ProductDao,
     private val likeDao: LikeDao
 ) {
-    fun observeProducts(): Flow<List<ProductEntity>> = productDao.observeAll()
+    fun pagingSearch(query: String, sort: String): Flow<PagingData<ProductEntity>> =
+        Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                prefetchDistance = 3,
+                enablePlaceholders = false
+            ),
+            remoteMediator = ShopRemoteMediator(
+                query = query,
+                sort = sort,
+                db = db,
+                api = api
+            ),
+            pagingSourceFactory = { productDao.pagingSource() }
+        ).flow
 
-    fun observeUserLikedProducts(userId: Long): Flow<List<ProductEntity>> =
-        productDao.observeLikedProducts(userId)
-
-    fun observeUserLikeSet(userId: Long): Flow<Set<String>> =
-        likeDao.observeProductIds(userId).map { it.toSet() }
-
-    suspend fun searchAndCache(query: String, sort: String = "sim"): List<String> {
-        val q = query.trim()
-        if (q.isEmpty()) return emptyList()
-        val resp = api.searchShop(query = q, sort = sort)
-        val entities = resp.items.map { it.toEntity() }
-        productDao.upsertAll(entities)
-        
-        return entities.map { it.productId }
-    }
+    fun observeProducts() = productDao.observeAll()
+    fun observeUserLikedProducts(userId: Long) = productDao.observeLikedProducts(userId)
+    fun observeUserLikeSet(userId: Long) = likeDao.observeProductIds(userId).map { it.toSet() }
 
     suspend fun toggleLike(userId: Long, product: ProductEntity) {
-        db.withTransaction{
+        db.withTransaction {
             productDao.upsert(product)
             if (likeDao.isLiked(userId, product.productId)) {
                 likeDao.delete(userId, product.productId)
@@ -40,15 +44,3 @@ class ShopRepository(
         }
     }
 }
-
-private fun String.stripBold() = replace("<b>", "").replace("</b>", "")
-
-private fun NaverShopItem.toEntity(): ProductEntity =
-    ProductEntity(
-        productId = productId,
-        title = title.stripBold(),
-        link = link,
-        image = image,
-        lprice = lprice,
-        mallName = mallName
-    )

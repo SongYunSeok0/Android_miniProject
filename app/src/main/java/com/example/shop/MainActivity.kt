@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/shop/MainActivity.kt
 package com.example.shop
 
 import android.os.Bundle
@@ -23,6 +22,18 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import com.google.android.material.progressindicator.CircularProgressIndicator
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.LoadState
+import androidx.compose.foundation.lazy.LazyColumn
 
 import com.example.shop.ui.ShopViewModel
 import com.example.shop.ui.ShopViewModelFactory
@@ -38,6 +49,7 @@ import com.example.shop.ui.theme.viewmodelTheme
 import com.example.shop.data.ProductEntity
 import com.example.shop.ui.SortType
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SearchScreen(
@@ -45,9 +57,10 @@ private fun SearchScreen(
     vm: ShopViewModel,
     authVm: AuthViewModel
 ) {
-    val results by vm.searchResults.collectAsState()
     val isAdmin by authVm.isAdmin.collectAsState()
     var sortMenuOpen by remember { mutableStateOf(false) }
+
+    val lazyItems = vm.pagingFlow.collectAsLazyPagingItems()
 
     Scaffold(
         topBar = {
@@ -59,7 +72,7 @@ private fun SearchScreen(
                             Text("사용자 관리", color = Color.White)
                         }
                     }
-                    IconButton(onClick = { nav.navigate("account") }) {
+                    IconButton(onClick = { nav.navigate("mypage") }) {
                         Icon(
                             imageVector = Icons.Filled.AccountCircle,
                             contentDescription = "내 정보",
@@ -78,11 +91,10 @@ private fun SearchScreen(
                 .padding(horizontal = 12.dp)
                 .padding(top = pad.calculateTopPadding())
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val query by vm.query.collectAsState()
                 OutlinedTextField(
-                    value = vm.query,
+                    value = query,
                     onValueChange = vm::updateQuery,
                     modifier = Modifier.weight(1f),
                     singleLine = true,
@@ -95,55 +107,100 @@ private fun SearchScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = vm::search,
+                    onClick = { lazyItems.refresh() },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF03C75A),
                         contentColor = Color.White
                     )
                 ) { Text("검색") }
 
-                IconButton(onClick = { sortMenuOpen = true }) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Sort,
-                        contentDescription = "정렬",
-                    )
-                }
-                DropdownMenu(
-                    expanded = sortMenuOpen,
-                    onDismissRequest = { sortMenuOpen = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text(SortType.ACCURACY.label) },
-                        onClick = { vm.updateSort(SortType.ACCURACY); sortMenuOpen = false }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(SortType.PRICE_ASC.label) },
-                        onClick = { vm.updateSort(SortType.PRICE_ASC); sortMenuOpen = false }
-                    )
-                    DropdownMenuItem(
-                        text = { Text(SortType.PRICE_DESC.label) },
-                        onClick = { vm.updateSort(SortType.PRICE_DESC); sortMenuOpen = false }
-                    )
+                Box {
+                    IconButton(onClick = { sortMenuOpen = true }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "정렬",
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = sortMenuOpen,
+                        onDismissRequest = { sortMenuOpen = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(SortType.ACCURACY.label) },
+                            onClick = { vm.updateSort(SortType.ACCURACY); sortMenuOpen = false; lazyItems.refresh() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(SortType.PRICE_ASC.label) },
+                            onClick = { vm.updateSort(SortType.PRICE_ASC); sortMenuOpen = false; lazyItems.refresh() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(SortType.PRICE_DESC.label) },
+                            onClick = { vm.updateSort(SortType.PRICE_DESC); sortMenuOpen = false; lazyItems.refresh() }
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            when {
-                vm.loading -> LinearProgressIndicator(Modifier.fillMaxWidth())
-                vm.error != null -> Text("에러: ${vm.error}", color = MaterialTheme.colorScheme.error)
-            }
+            val lazyItems = vm.pagingFlow.collectAsLazyPagingItems()
 
-            Spacer(Modifier.height(8.dp))
-
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(results) { product ->
-                    ProductRow(product, vm)
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(lazyItems.itemCount) { index ->
+                    val product = lazyItems[index]
+                    if (product != null) {
+                        ProductRow(product, vm)
+                    }
+                }
+            
+                lazyItems.apply {
+                    when (loadState.refresh) {
+                        is LoadState.Loading -> item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                        is LoadState.Error -> item {
+                            val e = loadState.refresh as LoadState.Error
+                            Column(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("로딩 실패: ${e.error.message}")
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
+                            }
+                        }
+                        else -> Unit
+                    }
+                    when (loadState.append) {
+                        is LoadState.Loading -> item {
+                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator()
+                            }
+                        }
+                        is LoadState.Error -> item {
+                            val e = loadState.append as LoadState.Error
+                            Column(
+                                Modifier.fillMaxWidth().padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text("추가 로딩 실패: ${e.error.message}")
+                                Spacer(Modifier.height(8.dp))
+                                OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
+                            }
+                        }
+                        else -> Unit
+                    }
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun AppNav() {
@@ -152,11 +209,9 @@ private fun AppNav() {
 
     val authVm: AuthViewModel = viewModel(factory = AuthViewModel.factory(app))
 
-    val currentUserId = 1L
     val shopVm: ShopViewModel = viewModel(
         factory = com.example.shop.ui.ShopViewModelFactory(
-            ServiceLocator.repo,
-            currentUserId
+            ServiceLocator.repo
         )
     )
 
@@ -173,12 +228,16 @@ private fun AppNav() {
     }
 
     LaunchedEffect(user) {
-        when {
-            user == null -> { /* 로그인 화면 유지 */ }
-            else -> nav.navigate("search") { popUpTo("login") { inclusive = true } }
+        shopVm.setUserId(user?.id)
+        if (user != null) {
+            nav.navigate("search") {
+                popUpTo("login") { inclusive = true }
+                launchSingleTop = true
+            }
         }
     }
 }
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

@@ -21,4 +21,10 @@ interface ProductDao {
         ORDER BY l.createdAt DESC
     """)
     fun observeLikedProducts(userId: Long): Flow<List<ProductEntity>>
+
+    @Query("SELECT * FROM products ORDER BY productId ASC")
+    fun pagingSource(): androidx.paging.PagingSource<Int, ProductEntity>
+    
+    @Query("DELETE FROM products")
+    suspend fun clearAll()
 }

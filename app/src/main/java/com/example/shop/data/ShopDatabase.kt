@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [ProductEntity::class, UserEntity::class, LikeEntity::class],
+    entities = [ProductEntity::class, UserEntity::class, LikeEntity::class, RemoteKey::class],
     version = 1,
     exportSchema = false
 )
@@ -14,6 +14,8 @@ abstract class ShopDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun likeDao(): LikeDao
     abstract fun userDao() : UserDao
+    abstract fun remoteKeyDao(): RemoteKeyDao
+
 
     companion object {
         @Volatile private var INSTANCE: ShopDatabase? = null

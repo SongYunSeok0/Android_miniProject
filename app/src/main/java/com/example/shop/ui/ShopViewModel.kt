@@ -1,18 +1,13 @@
 package com.example.shop.ui
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.example.shop.data.ProductEntity
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-
 
 enum class SortType(val apiValue: String, val label: String) {
     ACCURACY("sim", "정확도 순"),
@@ -20,66 +15,39 @@ enum class SortType(val apiValue: String, val label: String) {
     PRICE_DESC("dsc", "가격 높은순")
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ShopViewModel(
-    private val repo: ShopRepository, private val userId: Long
+    private val repo: ShopRepository
 ) : ViewModel() {
 
-    var query by mutableStateOf("")
-        private set
+    private val userId = MutableStateFlow<Long?>(null)
+    fun setUserId(id: Long?) { userId.value = id }
 
-    var loading by mutableStateOf(false)
-        private set
+    private val queryFlow = MutableStateFlow("")
+    private val sortFlow = MutableStateFlow(SortType.ACCURACY)
 
-    var error by mutableStateOf<String?>(null)
-        private set
+    val query: StateFlow<String> = queryFlow
 
-    var sort by mutableStateOf(SortType.ACCURACY)
+    fun updateQuery(q: String) { queryFlow.value = q }
+    fun updateSort(type: SortType) { sortFlow.value = type }
 
-    fun updateSort(type: SortType) {
-        sort = type
-        search()
-    }
-
-    private val allProducts = repo.observeProducts()
-
-    private val lastSearchIds = MutableStateFlow<List<String>>(emptyList())
-
-    val searchResults: StateFlow<List<ProductEntity>> =
-        combine(allProducts, lastSearchIds) { products, ids ->
-            if (ids.isEmpty()) emptyList() else {
-                val map = products.associateBy { it.productId }
-                ids.mapNotNull { map[it] }
-            }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-
-    val products: StateFlow<List<ProductEntity>> = 
-        repo.observeProducts()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val pagingFlow: Flow<PagingData<ProductEntity>> =
+        combine(queryFlow, sortFlow) { q, s -> q.trim() to s.apiValue }
+            .filter { it.first.isNotEmpty() }
+            .distinctUntilChanged()
+            .flatMapLatest { (q, s) -> repo.pagingSearch(q, s) }
+            .cachedIn(viewModelScope)
 
     val likedSet: StateFlow<Set<String>> =
-        repo.observeUserLikeSet(userId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+        userId.flatMapLatest { id ->
+            if (id == null) flowOf(emptySet()) else repo.observeUserLikeSet(id)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    val likedProducts: StateFlow<List<ProductEntity>> =
-        repo.observeUserLikedProducts(userId)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    fun updateQuery(q: String) { query = q }
-
-    fun search() {
-        val q = query.trim()
-        if (q.isEmpty()) return
+    fun toggleLike(product: ProductEntity) {
+        val id = userId.value ?: return
         viewModelScope.launch {
-            loading = true; error = null
-            runCatching { repo.searchAndCache(q, sort.apiValue) }
-                .onSuccess { ids: List<String> -> lastSearchIds.value = ids }
-                .onFailure { e -> error = e.message }
-            loading = false
+            repo.toggleLike(id, product)
         }
     }
-
-    fun toggleLike(product: ProductEntity) = viewModelScope.launch {
-        repo.toggleLike(userId, product)
-    }
 }
+

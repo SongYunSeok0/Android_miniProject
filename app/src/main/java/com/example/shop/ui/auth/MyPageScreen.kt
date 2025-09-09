@@ -1,3 +1,4 @@
+// app/src/main/java/com/example/shop/ui/auth/MyPageScreen.kt
 package com.example.shop.ui.auth
 
 import androidx.compose.foundation.layout.*
@@ -66,12 +67,31 @@ fun MyPageScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            user?.let { u ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(u.nickname, style = MaterialTheme.typography.titleMedium)
+                        Text("아이디: ${u.username}", style = MaterialTheme.typography.bodyMedium)
+                        Text("이메일: ${u.email}", style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            }
+
             Button(
                 onClick = { nav.navigate("account") },
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF03C75A),
-                    contentColor = Color.White 
+                    contentColor = Color.White
                 )
             ) {
                 Text("내 정보 수정")
