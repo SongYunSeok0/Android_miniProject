@@ -13,14 +13,6 @@ data class NaverShopItem(
     val link: String,
     val image: String,
     val lprice: String,
-    val hprice: String,
     val mallName: String,
-    val productId: String,
-    val productType: Int,
-    val brand: String?,
-    val maker: String?,
-    val category1: String?,
-    val category2: String?,
-    val category3: String?,
-    val category4: String?
+    val productId: String
 )

@@ -12,5 +12,6 @@ data class UserEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val username: String,
     val password: String = "",
-    val status: Boolean = false
+    val status: String = "ACTIVE",
+    val isAdmin: Boolean = false
 )

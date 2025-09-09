@@ -4,6 +4,8 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Delete
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
@@ -17,12 +19,12 @@ interface UserDao {
     suspend fun login(username: String, password: String): UserEntity?
 
     @Query("UPDATE users SET status = :status WHERE id = :userId")
-    suspend fun updateStatus(userId: Long, status: Boolean)
+    suspend fun updateStatus(userId: Long, status: String)
 
-    @Query("UPDATE users SET status = 0")
+    @Query("UPDATE users SET status = 'ACTIVE'")
     suspend fun logoutAll()
 
-    @Query("SELECT * FROM users WHERE status = 1 LIMIT 1")
+    @Query("SELECT * FROM users WHERE status = 'LOGGED_IN' LIMIT 1")
     suspend fun getLoggedIn(): UserEntity?
 
     @Query("UPDATE users SET username = :username WHERE id = :id")
@@ -30,4 +32,13 @@ interface UserDao {
     
     @Query("UPDATE users SET password = :password WHERE id = :id")
     suspend fun updatePassword(id: Long, password: String): Int
+
+    @Query("SELECT * FROM users ORDER BY id DESC")
+    fun observeAll(): Flow<List<UserEntity>>
+
+    @Query("SELECT COUNT(*) FROM users WHERE isAdmin = 1")
+    suspend fun countAdmins(): Int
+
+    @Delete
+    suspend fun delete(user: UserEntity)
 }

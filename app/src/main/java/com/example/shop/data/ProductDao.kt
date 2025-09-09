@@ -5,9 +5,20 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProductDao {
-    @Query("SELECT * FROM products ORDER BY title")
+    @Upsert
+    suspend fun upsertAll(items: List<ProductEntity>)
+
+    @Upsert
+    suspend fun upsert(item: ProductEntity)
+
+    @Query("SELECT * FROM products ORDER BY rowid DESC")
     fun observeAll(): Flow<List<ProductEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAll(items: List<ProductEntity>)
+    @Query("""
+        SELECT p.* FROM likes l
+        JOIN products p ON p.productId = l.productId
+        WHERE l.userId = :userId
+        ORDER BY l.createdAt DESC
+    """)
+    fun observeLikedProducts(userId: Long): Flow<List<ProductEntity>>
 }

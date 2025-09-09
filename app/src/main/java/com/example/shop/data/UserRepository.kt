@@ -2,33 +2,37 @@ package com.example.shop.data
 
 class UserRepository(private val userDao: UserDao) {
 
-    suspend fun register(username: String, password: String): Result<Long> {
+    suspend fun register(username: String, password: String): Result<Long> = runCatching {
         val exists = userDao.findByUsername(username)
-        if (exists != null) return Result.failure(IllegalStateException("이미 존재하는 아이디입니다."))
-        val id = userDao.insert(UserEntity(username = username, password = password))
-        return Result.success(id)
+        require(exists == null) { "이미 존재하는 아이디입니다." }
+        userDao.insert(
+            UserEntity(
+                username = username,
+                password = password,
+                status = "ACTIVE",
+                isAdmin = false
+            )
+        )
     }
 
-    suspend fun login(username: String, password: String): Result<UserEntity> {
+    suspend fun login(username: String, password: String): Result<UserEntity> = runCatching {
         val user = userDao.login(username, password)
-        return if (user != null) {
-            userDao.logoutAll()
-            userDao.updateStatus(user.id, true)
-            Result.success(user.copy(status = true))
-        } else {
-            Result.failure(IllegalStateException("아이디 또는 비밀번호가 올바르지 않습니다."))
-        }
+        ?: error("아이디 또는 비밀번호가 올바르지 않습니다.")
+        userDao.logoutAll()
+        userDao.updateStatus(user.id, "LOGGED_IN")
+        user.copy(status = "LOGGED_IN")
     }
 
-    suspend fun logout() {
-        userDao.logoutAll()
+    suspend fun logout(): Result<Unit> = runCatching {
+        userDao.getLoggedIn()?.let { loggedIn ->
+            userDao.updateStatus(loggedIn.id, "ACTIVE")
+        }
     }
 
     suspend fun currentUser(): UserEntity? = userDao.getLoggedIn()
 
-    suspend fun updateProfile(userId: Long, newUsername: String, newPassword: String?): Result<Unit> {
+    suspend fun updateProfile(userId: Long, newUsername: String, newPassword: String?): Result<Unit> = runCatching {
         if (newUsername.isNotBlank()) userDao.updateUsername(userId, newUsername)
-        newPassword?.let { userDao.updatePassword(userId, it) }
-        return Result.success(Unit)
+        if (!newPassword.isNullOrBlank()) userDao.updatePassword(userId, newPassword)
     }
 }

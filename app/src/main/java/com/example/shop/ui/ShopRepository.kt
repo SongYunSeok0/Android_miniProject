@@ -1,18 +1,43 @@
 package com.example.shop.ui
 
-import com.example.shop.data.ProductDao
-import com.example.shop.data.ProductEntity
+import androidx.room.withTransaction
+import com.example.shop.data.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 class ShopRepository(
     private val api: NaverShopApi = ShopRetrofit.api,
-    private val dao: ProductDao
+    private val db: ShopDatabase, 
+    private val productDao: ProductDao,
+    private val likeDao: LikeDao
 ) {
-    fun observeProducts() = dao.observeAll()
+    fun observeProducts(): Flow<List<ProductEntity>> = productDao.observeAll()
 
-    suspend fun searchAndCache(query: String) {
-        val resp = api.searchShop(query = query)
+    fun observeUserLikedProducts(userId: Long): Flow<List<ProductEntity>> =
+        productDao.observeLikedProducts(userId)
+
+    fun observeUserLikeSet(userId: Long): Flow<Set<String>> =
+        likeDao.observeProductIds(userId).map { it.toSet() }
+
+    suspend fun searchAndCache(query: String, sort: String = "sim"): List<String> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptyList()
+        val resp = api.searchShop(query = q, sort = sort)
         val entities = resp.items.map { it.toEntity() }
-        dao.upsertAll(entities)
+        productDao.upsertAll(entities)
+        
+        return entities.map { it.productId }
+    }
+
+    suspend fun toggleLike(userId: Long, product: ProductEntity) {
+        db.withTransaction{
+            productDao.upsert(product)
+            if (likeDao.isLiked(userId, product.productId)) {
+                likeDao.delete(userId, product.productId)
+            } else {
+                likeDao.insert(LikeEntity(userId = userId, productId = product.productId))
+            }
+        }
     }
 }
 

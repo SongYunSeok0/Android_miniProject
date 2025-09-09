@@ -25,6 +25,10 @@ class AuthViewModel(private val repo: UserRepository) : ViewModel() {
             .map { it != null }
             .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    val isAdmin: StateFlow<Boolean> =
+        _currentUser
+            .map { it?.isAdmin == true }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
@@ -42,11 +46,11 @@ class AuthViewModel(private val repo: UserRepository) : ViewModel() {
     fun login(username: String, password: String) = viewModelScope.launch {
         _message.value = null
         val result = repo.login(username, password)
-        result.onSuccess {
-            _currentUser.value = it
+        result.onSuccess { user ->
+            _currentUser.value = user.copy(status = "LOGGED_IN")
             _message.value = "로그인 성공"
-        }.onFailure {
-            _message.value = it.message
+        }.onFailure { e ->
+            _message.value = e.message
         }
     }
 

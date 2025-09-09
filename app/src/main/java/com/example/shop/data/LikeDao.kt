@@ -8,8 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LikeDao {
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insert(like: LikeEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(like: LikeEntity)
 
     @Query("DELETE FROM likes WHERE userId = :userId AND productId = :productId")
     suspend fun delete(userId: Long, productId: String)
@@ -17,12 +17,6 @@ interface LikeDao {
     @Query("SELECT EXISTS(SELECT 1 FROM likes WHERE userId = :userId AND productId = :productId)")
     suspend fun isLiked(userId: Long, productId: String): Boolean
 
-    @Query("""
-        SELECT p.* 
-        FROM products p 
-        INNER JOIN likes l ON l.productId = p.productId 
-        WHERE l.userId = :userId 
-        ORDER BY l.createdAt DESC
-    """)
-    fun observeLikedProducts(userId: Long): Flow<List<ProductEntity>>
+    @Query("SELECT productId FROM likes WHERE userId = :userId")
+    fun observeProductIds(userId: Long): Flow<List<String>>
 }
