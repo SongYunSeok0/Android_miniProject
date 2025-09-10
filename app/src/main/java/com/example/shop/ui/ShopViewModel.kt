@@ -6,6 +6,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.example.shop.data.ProductEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
@@ -15,7 +16,7 @@ enum class SortType(val apiValue: String, val label: String) {
     PRICE_DESC("dsc", "가격 높은순")
 }
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ShopViewModel(
     private val repo: ShopRepository
 ) : ViewModel() {
@@ -31,17 +32,18 @@ class ShopViewModel(
     fun updateQuery(q: String) { queryFlow.value = q }
     fun updateSort(type: SortType) { sortFlow.value = type }
 
-    val pagingFlow: Flow<PagingData<ProductEntity>> =
-        combine(queryFlow, sortFlow) { q, s -> q.trim() to s.apiValue }
-            .filter { it.first.isNotEmpty() }
-            .distinctUntilChanged()
-            .flatMapLatest { (q, s) -> repo.pagingSearch(q, s) }
-            .cachedIn(viewModelScope)
-
     val likedSet: StateFlow<Set<String>> =
         userId.flatMapLatest { id ->
             if (id == null) flowOf(emptySet()) else repo.observeUserLikeSet(id)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    val pagingFlow: Flow<PagingData<ProductEntity>> =
+        combine(queryFlow, sortFlow) { q, s -> q.trim() to s.apiValue }
+            .filter { it.first.isNotEmpty() }
+            .debounce(300)
+            .distinctUntilChanged()
+            .flatMapLatest { (q, s) -> repo.pagingSearch(q, s) }
+            .cachedIn(viewModelScope)
 
     fun toggleLike(product: ProductEntity) {
         val id = userId.value ?: return
@@ -49,5 +51,9 @@ class ShopViewModel(
             repo.toggleLike(id, product)
         }
     }
-}
 
+    fun clearSearch() {
+    updateQuery("")
+    updateSort(SortType.ACCURACY)
+}
+}

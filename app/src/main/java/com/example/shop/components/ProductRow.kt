@@ -1,25 +1,23 @@
 package com.example.shop.ui.components
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.border
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.graphics.Color
 import coil.compose.AsyncImage
-
-
 import com.example.shop.data.ProductEntity
 import com.example.shop.ui.ShopViewModel
 
@@ -28,7 +26,7 @@ fun ProductRow(
     product: ProductEntity,
     vm: ShopViewModel,
     modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit
 ) {
     val likedSet by vm.likedSet.collectAsState(initial = emptySet())
     val isLiked = likedSet.contains(product.productId)
@@ -38,7 +36,7 @@ fun ProductRow(
             .fillMaxWidth()
             .height(120.dp)
             .border(1.dp, Color.LightGray, RoundedCornerShape(12.dp))
-            .clickable(enabled = onClick != null) { onClick?.invoke() },
+            .clickable { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
@@ -55,9 +53,7 @@ fun ProductRow(
                 modifier = Modifier.size(96.dp),
                 contentScale = ContentScale.Crop
             )
-
             Spacer(Modifier.width(12.dp))
-
             Column(Modifier.weight(1f)) {
                 Text(
                     text = product.title,
@@ -71,7 +67,6 @@ fun ProductRow(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-
             IconButton(onClick = { vm.toggleLike(product) }) {
                 Icon(
                     imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,

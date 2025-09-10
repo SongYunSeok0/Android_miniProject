@@ -21,10 +21,22 @@ interface ProductDao {
         ORDER BY l.createdAt DESC
     """)
     fun observeLikedProducts(userId: Long): Flow<List<ProductEntity>>
+    
+    @Query("""
+        SELECT * FROM products 
+        WHERE title LIKE :kw ESCAPE '\'
+           OR mallName LIKE :kw ESCAPE '\'
+        ORDER BY rowid
+    """)
+    fun pagingSourceByKeyword(kw: String): androidx.paging.PagingSource<Int, ProductEntity>
+
 
     @Query("SELECT * FROM products ORDER BY productId ASC")
     fun pagingSource(): androidx.paging.PagingSource<Int, ProductEntity>
     
+    @Query("DELETE FROM products WHERE productId NOT IN (SELECT productId FROM likes)")
+    suspend fun deleteAllExceptLiked()
+
     @Query("DELETE FROM products")
     suspend fun clearAll()
 }

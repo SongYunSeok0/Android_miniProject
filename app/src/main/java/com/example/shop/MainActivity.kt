@@ -22,18 +22,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import com.google.android.material.progressindicator.CircularProgressIndicator
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.LoadState
-import androidx.compose.foundation.lazy.LazyColumn
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 
 import com.example.shop.ui.ShopViewModel
 import com.example.shop.ui.ShopViewModelFactory
@@ -44,6 +40,8 @@ import com.example.shop.ui.auth.SignUpScreen
 import com.example.shop.ui.auth.AccountScreen
 import com.example.shop.ui.auth.MyPageScreen
 import com.example.shop.ui.auth.AdminScreen
+import com.example.shop.ui.web.WebViewScreen
+import com.example.shop.ui.ProductDetailSheet
 import com.example.shop.ui.components.ProductRow
 import com.example.shop.ui.theme.viewmodelTheme
 import com.example.shop.data.ProductEntity
@@ -60,7 +58,11 @@ private fun SearchScreen(
     val isAdmin by authVm.isAdmin.collectAsState()
     var sortMenuOpen by remember { mutableStateOf(false) }
 
-    val lazyItems = vm.pagingFlow.collectAsLazyPagingItems()
+    var selected by remember { mutableStateOf<ProductEntity?>(null) }
+    var showSheet by remember { mutableStateOf(false) }
+
+    val query by vm.query.collectAsState()
+    var refreshTick by remember { mutableStateOf(0) } // 버튼 강제 새로고침 트리거
 
     Scaffold(
         topBar = {
@@ -80,9 +82,7 @@ private fun SearchScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF03C75A)
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF03C75A))
             )
         }
     ) { pad ->
@@ -92,7 +92,6 @@ private fun SearchScreen(
                 .padding(top = pad.calculateTopPadding())
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                val query by vm.query.collectAsState()
                 OutlinedTextField(
                     value = query,
                     onValueChange = vm::updateQuery,
@@ -107,7 +106,7 @@ private fun SearchScreen(
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
-                    onClick = { lazyItems.refresh() },
+                    onClick = { if (query.isNotBlank()) refreshTick++ },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF03C75A),
                         contentColor = Color.White
@@ -127,15 +126,27 @@ private fun SearchScreen(
                     ) {
                         DropdownMenuItem(
                             text = { Text(SortType.ACCURACY.label) },
-                            onClick = { vm.updateSort(SortType.ACCURACY); sortMenuOpen = false; lazyItems.refresh() }
+                            onClick = {
+                                vm.updateSort(SortType.ACCURACY)
+                                sortMenuOpen = false
+                                if (query.isNotBlank()) refreshTick++
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text(SortType.PRICE_ASC.label) },
-                            onClick = { vm.updateSort(SortType.PRICE_ASC); sortMenuOpen = false; lazyItems.refresh() }
+                            onClick = {
+                                vm.updateSort(SortType.PRICE_ASC)
+                                sortMenuOpen = false
+                                if (query.isNotBlank()) refreshTick++
+                            }
                         )
                         DropdownMenuItem(
                             text = { Text(SortType.PRICE_DESC.label) },
-                            onClick = { vm.updateSort(SortType.PRICE_DESC); sortMenuOpen = false; lazyItems.refresh() }
+                            onClick = {
+                                vm.updateSort(SortType.PRICE_DESC)
+                                sortMenuOpen = false
+                                if (query.isNotBlank()) refreshTick++
+                            }
                         )
                     }
                 }
@@ -143,60 +154,97 @@ private fun SearchScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            val lazyItems = vm.pagingFlow.collectAsLazyPagingItems()
-
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(lazyItems.itemCount) { index ->
-                    val product = lazyItems[index]
-                    if (product != null) {
-                        ProductRow(product, vm)
-                    }
+            if (query.isBlank()) {
+                // 검색어가 없을 때는 리스트 수집/로딩 안 함
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("검색어를 입력해 주세요.")
                 }
-            
-                lazyItems.apply {
-                    when (loadState.refresh) {
-                        is LoadState.Loading -> item {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
-                            }
+            } else {
+                val items = vm.pagingFlow.collectAsLazyPagingItems()
+
+                // 버튼/정렬에서 강제 새로고침 트리거 처리
+                LaunchedEffect(refreshTick) { items.refresh() }
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(items.itemCount) { index ->
+                        val product = items[index]
+                        if (product != null) {
+                            ProductRow(
+                                product = product,
+                                vm = vm,
+                                onClick = {
+                                    selected = product
+                                    showSheet = true
+                                }
+                            )
                         }
-                        is LoadState.Error -> item {
-                            val e = loadState.refresh as LoadState.Error
-                            Column(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("로딩 실패: ${e.error.message}")
-                                Spacer(Modifier.height(8.dp))
-                                OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
-                            }
-                        }
-                        else -> Unit
                     }
-                    when (loadState.append) {
-                        is LoadState.Loading -> item {
-                            Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator()
+
+                    items.apply {
+                        when (loadState.refresh) {
+                            is LoadState.Loading -> item {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator() }
                             }
-                        }
-                        is LoadState.Error -> item {
-                            val e = loadState.append as LoadState.Error
-                            Column(
-                                Modifier.fillMaxWidth().padding(16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text("추가 로딩 실패: ${e.error.message}")
-                                Spacer(Modifier.height(8.dp))
-                                OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
+                            is LoadState.Error -> item {
+                                val e = loadState.refresh as LoadState.Error
+                                Column(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("로딩 실패: ${e.error.message}")
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
+                                }
                             }
+                            else -> Unit
                         }
-                        else -> Unit
+                        when (loadState.append) {
+                            is LoadState.Loading -> item {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) { CircularProgressIndicator() }
+                            }
+                            is LoadState.Error -> item {
+                                val e = loadState.append as LoadState.Error
+                                Column(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("추가 로딩 실패: ${e.error.message}")
+                                    Spacer(Modifier.height(8.dp))
+                                    OutlinedButton(onClick = { retry() }) { Text("다시 시도") }
+                                }
+                            }
+                            else -> Unit
+                        }
                     }
                 }
             }
+        }
+    }
+
+    if (showSheet && selected != null) {
+        ModalBottomSheet(onDismissRequest = { showSheet = false }) {
+            ProductDetailSheet(
+                product = selected!!,
+                vm = vm,
+                onClose = { showSheet = false }
+            )
         }
     }
 }
@@ -208,11 +256,8 @@ private fun AppNav() {
     val app = LocalContext.current.applicationContext as Application
 
     val authVm: AuthViewModel = viewModel(factory = AuthViewModel.factory(app))
-
     val shopVm: ShopViewModel = viewModel(
-        factory = com.example.shop.ui.ShopViewModelFactory(
-            ServiceLocator.repo
-        )
+        factory = com.example.shop.ui.ShopViewModelFactory(ServiceLocator.repo)
     )
 
     val user by authVm.currentUser.collectAsState()
@@ -222,9 +267,16 @@ private fun AppNav() {
         composable("signup") { SignUpScreen(nav = nav, vm = authVm) }
         composable("search") { SearchScreen(nav = nav, vm = shopVm, authVm = authVm) }
         composable("mypage") { MyPageScreen(nav = nav, vm = authVm, shopVm = shopVm) }
-
         composable("admin")  { AdminScreen(nav = nav, authVm = authVm) }
         composable("account"){ AccountScreen(nav = nav, vm = authVm) }
+
+        composable(
+            route = "webview/{url}",
+            arguments = listOf(navArgument("url") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val url = Uri.decode(backStackEntry.arguments?.getString("url") ?: "")
+            WebViewScreen(url = url)
+        }
     }
 
     LaunchedEffect(user) {
@@ -234,6 +286,8 @@ private fun AppNav() {
                 popUpTo("login") { inclusive = true }
                 launchSingleTop = true
             }
+        } else {
+            shopVm.clearSearch()
         }
     }
 }

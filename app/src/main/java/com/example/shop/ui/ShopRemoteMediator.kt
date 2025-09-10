@@ -3,6 +3,8 @@ package com.example.shop.ui
 import androidx.paging.*
 import androidx.room.withTransaction
 import com.example.shop.data.*
+import kotlinx.coroutines.delay
+import retrofit2.HttpException
 
 @OptIn(ExperimentalPagingApi::class)
 class ShopRemoteMediator(
@@ -12,11 +14,12 @@ class ShopRemoteMediator(
     private val api: NaverShopApi
 ) : RemoteMediator<Int, ProductEntity>() {
 
+    private var attempt = 0
+
     override suspend fun load(
         loadType: LoadType,
         state: PagingState<Int, ProductEntity>
     ): MediatorResult {
-        // Paging이 요청한 실제 pageSize 사용
         val pageSize = state.config.pageSize
 
         val start = when (loadType) {
@@ -29,46 +32,55 @@ class ShopRemoteMediator(
             }
         }
 
-        if (start > 1000) return MediatorResult.Success(true) // 네이버 제한
+        if (start > 1000) return MediatorResult.Success(true)
+
+        delay(150L)
 
         return try {
             val resp = api.searchShop(
                 query = query.trim(),
                 sort = sort,
                 start = start,
-                display = pageSize           // ★ 여기 중요: 20개씩 요청
+                display = pageSize
             )
             val items = resp.items.map { it.toEntity() }
 
             db.withTransaction {
                 if (loadType == LoadType.REFRESH) {
                     db.remoteKeyDao().clear()
-                    db.productDao().clearAll()
+                    db.productDao().deleteAllExceptLiked()
                 }
                 db.productDao().upsertAll(items)
 
-                // 다음 start는 "이번에 실제로 받은 개수"만큼 증가
                 val received = items.size
                 val next = when {
                     received == 0 -> null
                     (start + received) > 1000 -> null
-                    else -> start + received   // ★ items.size 기준
+                    else -> start + received
                 }
-
                 val keys = items.map { RemoteKey(productId = it.productId, nextKey = next) }
                 db.remoteKeyDao().upsertAll(keys)
             }
 
+            attempt = 0
+
             val endReached = items.isEmpty() || (start + items.size) > 1000
             MediatorResult.Success(endOfPaginationReached = endReached)
+
+        } catch (e: HttpException) {
+            if (e.code() == 429) {
+                attempt++
+                val waitMs = (500L * (1 shl (attempt - 1))).coerceAtMost(8_000L) // 0.5s,1s,2s,4s,8s
+                delay(waitMs)
+                return load(loadType, state)
+            }
+            MediatorResult.Error(e)
         } catch (e: Exception) {
             MediatorResult.Error(e)
         }
     }
 }
 
-
-// dto -> entity 변환이 여기 없으면 기존 위치 그대로 사용
 private fun String.stripBold() = replace("<b>", "").replace("</b>", "")
 private fun NaverShopItem.toEntity(): ProductEntity =
     ProductEntity(
@@ -77,5 +89,13 @@ private fun NaverShopItem.toEntity(): ProductEntity =
         link = link,
         image = image,
         lprice = lprice,
-        mallName = mallName
+        hprice = hprice,
+        mallName = mallName,
+        productType = productType,
+        brand = brand,
+        maker = maker,
+        category1 = category1,
+        category2 = category2,
+        category3 = category3,
+        category4 = category4
     )

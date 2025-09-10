@@ -18,7 +18,7 @@ import androidx.room.Index
             entity = ProductEntity::class,
             parentColumns = ["productId"],
             childColumns = ["productId"],
-            onDelete = ForeignKey.CASCADE
+            onDelete = ForeignKey.NO_ACTION
         )
     ],
     indices = [Index("userId"), Index("productId")]

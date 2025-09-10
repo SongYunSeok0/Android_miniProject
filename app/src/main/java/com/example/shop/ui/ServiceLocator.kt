@@ -3,7 +3,6 @@ package com.example.shop.ui
 import android.content.Context
 import com.example.shop.data.ShopDatabase
 import com.example.shop.data.UserEntity
-import com.example.shop.data.UserDao
 import com.example.shop.ui.ShopRepository
 import com.example.shop.ui.ShopRetrofit
 

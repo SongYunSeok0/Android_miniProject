@@ -18,7 +18,9 @@ class ShopRepository(
             config = PagingConfig(
                 pageSize = 20,
                 prefetchDistance = 3,
-                enablePlaceholders = false
+                initialLoadSize = 40,
+                enablePlaceholders = false,
+                maxSize = 200
             ),
             remoteMediator = ShopRemoteMediator(
                 query = query,
@@ -26,7 +28,13 @@ class ShopRepository(
                 db = db,
                 api = api
             ),
-            pagingSourceFactory = { productDao.pagingSource() }
+            pagingSourceFactory = {
+                val escaped = query
+                    .replace("\\", "\\\\")
+                    .replace("%", "\\%")
+                    .replace("_", "\\_")
+                productDao.pagingSourceByKeyword("%$escaped%")
+            }
         ).flow
 
     fun observeProducts() = productDao.observeAll()

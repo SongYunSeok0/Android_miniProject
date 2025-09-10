@@ -1,4 +1,3 @@
-// app/src/main/java/com/example/shop/ui/auth/MyPageScreen.kt
 package com.example.shop.ui.auth
 
 import androidx.compose.foundation.layout.*
@@ -7,12 +6,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -23,6 +18,8 @@ import com.example.shop.ui.ShopViewModel
 import com.example.shop.ui.components.ProductRow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import android.content.Intent
+import android.net.Uri
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +104,14 @@ fun MyPageScreen(
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(liked) { product ->
-                            ProductRow(product = product, vm = shopVm)
+                            ProductRow(
+                                product = product,
+                                vm = shopVm,
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(product.link))
+                                    context.startActivity(intent)
+                                }
+                            )
                         }
                     }
                 }
