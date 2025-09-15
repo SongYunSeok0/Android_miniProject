@@ -1,4 +1,4 @@
-package com.example.shop.ui
+package com.example.shop.core.network
 
 import retrofit2.http.GET
 import retrofit2.http.Headers

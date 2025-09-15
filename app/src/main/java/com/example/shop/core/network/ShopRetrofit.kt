@@ -1,4 +1,4 @@
-package com.example.shop.ui
+package com.example.shop.core.network
 
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
@@ -14,7 +14,7 @@ object ShopRetrofit {
     .readTimeout(10, TimeUnit.SECONDS)
     .writeTimeout(10, TimeUnit.SECONDS)
     .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC   // 필요시 BODY
+            level = HttpLoggingInterceptor.Level.BASIC
         }
     )
     .build()

@@ -1,8 +1,15 @@
-package com.example.shop.ui
+package com.example.shop.data.db.paging
 
-import androidx.paging.*
+import androidx.paging.ExperimentalPagingApi
+import androidx.paging.LoadType
+import androidx.paging.PagingState
+import androidx.paging.RemoteMediator
 import androidx.room.withTransaction
-import com.example.shop.data.*
+import com.example.shop.core.network.NaverShopApi
+import com.example.shop.core.network.NaverShopItem
+import com.example.shop.data.db.ShopDatabase
+import com.example.shop.data.db.entity.ProductEntity
+import com.example.shop.data.db.paging.RemoteKey
 import kotlinx.coroutines.delay
 import retrofit2.HttpException
 
@@ -70,7 +77,7 @@ class ShopRemoteMediator(
         } catch (e: HttpException) {
             if (e.code() == 429) {
                 attempt++
-                val waitMs = (500L * (1 shl (attempt - 1))).coerceAtMost(8_000L) // 0.5s,1s,2s,4s,8s
+                val waitMs = (500L * (1 shl (attempt - 1))).coerceAtMost(8_000L)
                 delay(waitMs)
                 return load(loadType, state)
             }

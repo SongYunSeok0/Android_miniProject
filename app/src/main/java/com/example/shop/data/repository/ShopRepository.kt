@@ -1,14 +1,23 @@
-package com.example.shop.ui
+package com.example.shop.data.repository
 
-import androidx.paging.*
+import androidx.paging.ExperimentalPagingApi
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
 import androidx.room.withTransaction
-import com.example.shop.data.*
+import com.example.shop.core.network.NaverShopApi
+import com.example.shop.data.db.ShopDatabase
+import com.example.shop.data.db.dao.LikeDao
+import com.example.shop.data.db.dao.ProductDao
+import com.example.shop.data.db.entity.LikeEntity
+import com.example.shop.data.db.entity.ProductEntity
+import com.example.shop.data.db.paging.ShopRemoteMediator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalPagingApi::class)
 class ShopRepository(
-    private val api: NaverShopApi = ShopRetrofit.api,
+    private val api: NaverShopApi,
     private val db: ShopDatabase,
     private val productDao: ProductDao,
     private val likeDao: LikeDao

@@ -1,6 +1,10 @@
-package com.example.shop.data
+package com.example.shop.data.db.dao
 
-import androidx.room.*
+import androidx.paging.PagingSource
+import androidx.room.Dao
+import androidx.room.Query
+import androidx.room.Upsert
+import com.example.shop.data.db.entity.ProductEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -14,26 +18,29 @@ interface ProductDao {
     @Query("SELECT * FROM products ORDER BY rowid DESC")
     fun observeAll(): Flow<List<ProductEntity>>
 
-    @Query("""
+    @Query(
+        """
         SELECT p.* FROM likes l
         JOIN products p ON p.productId = l.productId
         WHERE l.userId = :userId
         ORDER BY l.createdAt DESC
-    """)
+    """
+    )
     fun observeLikedProducts(userId: Long): Flow<List<ProductEntity>>
-    
-    @Query("""
+
+    @Query(
+        """
         SELECT * FROM products 
         WHERE title LIKE :kw ESCAPE '\'
            OR mallName LIKE :kw ESCAPE '\'
         ORDER BY rowid
-    """)
-    fun pagingSourceByKeyword(kw: String): androidx.paging.PagingSource<Int, ProductEntity>
-
+    """
+    )
+    fun pagingSourceByKeyword(kw: String): PagingSource<Int, ProductEntity>
 
     @Query("SELECT * FROM products ORDER BY productId ASC")
-    fun pagingSource(): androidx.paging.PagingSource<Int, ProductEntity>
-    
+    fun pagingSource(): PagingSource<Int, ProductEntity>
+
     @Query("DELETE FROM products WHERE productId NOT IN (SELECT productId FROM likes)")
     suspend fun deleteAllExceptLiked()
 

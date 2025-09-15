@@ -1,4 +1,4 @@
-package com.example.shop.data
+package com.example.shop.data.db.paging
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey

@@ -1,10 +1,29 @@
 package com.example.shop.ui.auth
 
 import android.util.Patterns
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -17,8 +36,7 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirm by rememberSaveable { mutableStateOf("") }
-
-    val message by vm.message.collectAsState(initial = null)
+    val message by vm.message.collectAsState()
 
     val isEmailValid = remember(email) { Patterns.EMAIL_ADDRESS.matcher(email.trim()).matches() }
     val isPwOk = remember(password, confirm) { password.isNotBlank() && password == confirm }
@@ -33,10 +51,7 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
         }
     }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = Color.White
-    ) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -44,7 +59,6 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("회원가입", style = MaterialTheme.typography.headlineSmall)
-
             OutlinedTextField(
                 value = username,
                 onValueChange = { username = it },
@@ -52,7 +66,6 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
             OutlinedTextField(
                 value = nickname,
                 onValueChange = { nickname = it },
@@ -60,19 +73,15 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
                 label = { Text("이메일") },
                 singleLine = true,
                 isError = email.isNotBlank() && !isEmailValid,
-                supportingText = {
-                    if (email.isNotBlank() && !isEmailValid) Text("올바른 이메일 형식을 입력하세요.")
-                },
+                supportingText = { if (email.isNotBlank() && !isEmailValid) Text("올바른 이메일 형식을 입력하세요.") },
                 modifier = Modifier.fillMaxWidth()
             )
-
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
@@ -80,21 +89,15 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
             OutlinedTextField(
                 value = confirm,
                 onValueChange = { confirm = it },
                 label = { Text("비밀번호 확인") },
                 singleLine = true,
                 isError = password.isNotBlank() && confirm.isNotBlank() && password != confirm,
-                supportingText = {
-                    if (password.isNotBlank() && confirm.isNotBlank() && password != confirm) {
-                        Text("비밀번호가 일치하지 않습니다.")
-                    }
-                },
+                supportingText = { if (password.isNotBlank() && confirm.isNotBlank() && password != confirm) Text("비밀번호가 일치하지 않습니다.") },
                 modifier = Modifier.fillMaxWidth()
             )
-
             Button(
                 onClick = {
                     vm.register(
@@ -106,27 +109,16 @@ fun SignUpScreen(nav: NavController, vm: AuthViewModel) {
                 },
                 enabled = isEnabled,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF03C75A),
-                    contentColor = Color.White
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF03C75A), contentColor = Color.White)
             ) { Text("가입하기") }
-
             OutlinedButton(
                 onClick = { nav.popBackStack() },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF03C75A)
-                )
+                modifier = Modifier.fillMaxWidth()
             ) { Text("돌아가기") }
-
             message?.let {
                 Text(
                     it,
-                    color = if (it.contains("완료") || it.contains("성공"))
-                        MaterialTheme.colorScheme.primary
-                    else
-                        MaterialTheme.colorScheme.error
+                    color = if (it.contains("완료") || it.contains("성공")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
             }
         }

@@ -1,4 +1,4 @@
-package com.example.shop.ui
+package com.example.shop.core
 
 import android.app.Application
 

@@ -1,4 +1,8 @@
-package com.example.shop.data
+package com.example.shop.data.repository
+
+import com.example.shop.data.db.dao.UserDao
+import com.example.shop.data.db.entity.UserEntity
+import kotlinx.coroutines.flow.Flow
 
 class UserRepository(private val userDao: UserDao) {
 
@@ -33,11 +37,21 @@ class UserRepository(private val userDao: UserDao) {
     }
 
     suspend fun login(username: String, password: String): Result<UserEntity> = runCatching {
-        val user = userDao.login(username.trim(), password)
-            ?: error("아이디 또는 비밀번호가 올바르지 않습니다.")
-        userDao.logoutAll()
-        userDao.updateStatus(user.id, "LOGGED_IN")
-        user.copy(status = "LOGGED_IN")
+        val u = username.trim()
+
+        val activeUser = userDao.loginActivate(u, password)
+        if (activeUser != null) {
+            userDao.resetLoggedInToActive()
+            userDao.updateStatus(activeUser.id, "LOGGED_IN")
+            return@runCatching activeUser.copy(status = "LOGGED_IN")
+        }
+
+        val found = userDao.findByUsername(u)
+        if (found?.status == "DEACTIVATED") {
+            error("계정이 비활성화되어 로그인할 수 없습니다.")
+        } else {
+            error("아이디 또는 비밀번호가 올바르지 않습니다.")
+        }
     }
 
     suspend fun logout(): Result<Unit> = runCatching {
@@ -82,6 +96,7 @@ class UserRepository(private val userDao: UserDao) {
         )
         Unit
     }
+
     suspend fun updateNickname(userId: Long, nickname: String): Result<Unit> = runCatching {
         val n = nickname.trim()
         require(n.isNotBlank()) { "닉네임을 입력하세요." }
@@ -97,6 +112,25 @@ class UserRepository(private val userDao: UserDao) {
             error("이미 사용 중인 이메일입니다.")
         }
         userDao.updateEmail(userId, e)
+        Unit
+    }
+
+    fun observeAllUsers(): Flow<List<UserEntity>> = userDao.observeAll()
+
+    suspend fun setUserStatus(userId: Long, status: String): Result<Unit> = runCatching {
+        val target = userDao.findById(userId) ?: error("사용자를 찾을 수 없습니다.")
+        if (target.isAdmin && status == "DEACTIVATED") {
+            val adminCount = userDao.countAdmins()
+            require(adminCount > 1) { "마지막 관리자 계정은 비활성화할 수 없습니다." }
+        }
+        userDao.updateStatus(userId, status)
+        Unit
+    }
+
+    suspend fun findUserById(id: Long): UserEntity? = userDao.findById(id)
+
+    suspend fun deleteUser(user: UserEntity): Result<Unit> = runCatching {
+        userDao.delete(user)
         Unit
     }
 }

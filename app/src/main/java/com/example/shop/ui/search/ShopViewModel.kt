@@ -1,14 +1,24 @@
-package com.example.shop.ui
+package com.example.shop.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import com.example.shop.data.ProductEntity
+import com.example.shop.data.db.entity.ProductEntity
+import com.example.shop.data.repository.ShopRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filter
 
 enum class SortType(val apiValue: String, val label: String) {
     ACCURACY("sim", "정확도 순"),
@@ -37,7 +47,7 @@ class ShopViewModel(
             if (id == null) flowOf(emptySet()) else repo.observeUserLikeSet(id)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    val pagingFlow: Flow<PagingData<ProductEntity>> =
+    val pagingFlow: kotlinx.coroutines.flow.Flow<PagingData<ProductEntity>> =
         combine(queryFlow, sortFlow) { q, s -> q.trim() to s.apiValue }
             .filter { it.first.isNotEmpty() }
             .debounce(300)
@@ -53,7 +63,7 @@ class ShopViewModel(
     }
 
     fun clearSearch() {
-    updateQuery("")
-    updateSort(SortType.ACCURACY)
-}
+        updateQuery("")
+        updateSort(SortType.ACCURACY)
+    }
 }
